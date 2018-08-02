@@ -142,6 +142,7 @@ module ocn_time_integration_split
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
       logical, pointer :: config_compute_active_tracer_budgets
+      logical, pointer :: config_debug_split_explicit
 
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
@@ -257,6 +258,7 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -929,6 +931,22 @@ module ocn_time_integration_split
                                           + dt / nBtrSubcycles * sshTend(iCell) / areaCell(iCell)
                 end do
                 !$omp end do
+
+                ! This is from pwolfram.  Probably delete
+                !do iCell = 1, nCells
+                !  call mpas_log_write('debug $r', realArgs=(/sshSubcycleNew(iCell)/)) 
+                !end do
+
+                if (config_debug_split_explicit) then
+                  ! add in write statement for debugging to print to a standard text file (get single strip out) 4.000
+                  ! add in a new line each time for the write statement
+                  do iCell=1,nCells
+                    write(debugSplitExplicitUnit,"(ES32.16)", advance='no') sshSubcycleNew(iCell)  ! 4 hard coded for an example for brevity of case
+                  end do
+                  write(debugSplitExplicitUnit, *) ' '
+                  !write(debugSplitExplicitUnit,*) sshSubcycleCur(:nCells:4)  ! 4 hard coded for an example for brevity of case
+                  flush(debugSplitExplicitUnit)
+                end if
 
                 !! asarje: changed to avoid redundant computations when config_btr_solve_SSH2 is true
 
