@@ -25,6 +25,7 @@ MODULE ocn_time_integration_split
    USE mpas_threading
    USE mpas_timekeeping
    USE mpas_log
+   USE mpas_io_units
 
    USE ocn_tendency
    USE ocn_diagnostics
@@ -89,7 +90,7 @@ MODULE ocn_time_integration_split
       INTEGER :: iCell, i,k,j, iEdge, cell1, cell2, split_explicit_step, split, &
                  eoe, oldBtrSubcycleTime, newBtrSubcycleTime, uPerpTime, BtrCorIter, &
                  stage1_tend_time, useVelocityCorrection, err, tsIter, &
-                 edgeHaloComputeCounter, cellHaloComputeCounter, neededHalos
+                 edgeHaloComputeCounter, cellHaloComputeCounter
       INTEGER, DIMENSION(:), ALLOCATABLE :: n_bcl_iter
       LOGICAL :: activeTracersOnly ! if true only compute tendencies for active tracers 
       REAL(KIND=RKIND) :: normalThicknessFluxSum, thicknessSum, flux, sshEdge, hEdge1, &
@@ -110,7 +111,9 @@ MODULE ocn_time_integration_split
 
       ! Config options
       CHARACTER(LEN=StrKIND), POINTER :: config_time_integrator, &
+                                         config_debug_split_explicit_filename, &
                                          config_land_ice_flux_mode
+      INTEGER :: debugSplitExplicitUnit
       INTEGER, POINTER :: config_n_bcl_iter_mid, config_n_bcl_iter_beg, &
                           config_n_bcl_iter_end, config_n_ts_iter, &
                           config_btr_subcycle_loop_factor, config_n_btr_cor_iter, &
@@ -118,9 +121,8 @@ MODULE ocn_time_integration_split
       LOGICAL, POINTER :: config_use_standardGM, config_use_freq_filtered_thickness, &
                           config_btr_solve_SSH2, config_filter_btr_mode, &
                           config_vel_correction, config_prescribe_velocity, &
-                          config_prescribe_thickness, config_disable_thick_all_tend, &
-                          config_disable_vel_all_tend, config_disable_tr_all_tend, &
-                          config_use_cvmix_kpp, config_use_tracerGroup, &
+                          config_prescribe_thickness, config_use_cvmix_kpp, &
+                          config_use_tracerGroup, &
                           config_compute_active_tracer_budgets, &
                           config_debug_split_explicit
       REAL(KIND=RKIND), POINTER :: config_mom_del4, config_btr_gam1_velWt1, &
@@ -148,7 +150,7 @@ MODULE ocn_time_integration_split
       REAL(KIND=RKIND), DIMENSION(:), POINTER &
       :: sshSubcycleCur, sshSubcycleNew, normalBarotropicVelocitySubcycleCur, &
          normalBarotropicVelocitySubcycleNew, sshCur, sshNew, &
-         normalBarotropicVelocityCur, normalBarotropicVelocityNew, &
+         normalBarotropicVelocityCur, normalBarotropicVelocityNew
       
       REAL(KIND=RKIND), DIMENSION(:,:), POINTER &
       :: normalBaroclinicVelocityCur, normalBaroclinicVelocityNew, normalVelocityCur, &
@@ -230,12 +232,6 @@ MODULE ocn_time_integration_split
                                 config_time_integrator)
       CALL mpas_pool_get_config(domain % configs, 'config_vel_correction', &
                                 config_vel_correction)
-      CALL mpas_pool_get_config(domain % configs, 'config_disable_vel_all_tend', &
-                                config_disable_vel_all_tend)
-      CALL mpas_pool_get_config(domain % configs, 'config_disable_thick_all_tend', &
-                                config_disable_thick_all_tend)
-      CALL mpas_pool_get_config(domain % configs, 'config_disable_tr_all_tend', &
-                                config_disable_tr_all_tend)
 
       CALL mpas_pool_get_config(domain % configs, 'config_prescribe_velocity', &
                                 config_prescribe_velocity)
@@ -261,6 +257,9 @@ MODULE ocn_time_integration_split
                                 config_compute_active_tracer_budgets)
       CALL mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', &
                                 config_debug_split_explicit)
+      CALL mpas_pool_get_config(domain % configs, &
+                                'config_debug_split_explicit_filename', &
+                                config_debug_split_explicit_filename)                                
                                 
       ALLOCATE(n_bcl_iter(config_n_ts_iter))
       !
@@ -406,12 +405,6 @@ MODULE ocn_time_integration_split
 
       DO split_explicit_step = 1, config_n_ts_iter
       
-         IF (config_disable_thick_all_tend .AND. config_disable_vel_all_tend .AND. &
-             config_disable_tr_all_tend) THEN
-            EXIT 
-            ! Don't compute in loop meant to update velocity, thickness, and tracers
-         END IF 
-      
          CALL mpas_timer_start('se loop')
 
          stage1_tend_time = MIN(split_explicit_step,2)
@@ -528,7 +521,7 @@ MODULE ocn_time_integration_split
            CALL mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', &
                                     layerThicknessEdge)
            CALL ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, &
-                             meshPool, scratchPool, stage1_tend_time)
+                             meshPool, scratchPool, stage1_tend_time, dt)
            block => block % next
          END DO
          CALL mpas_timer_stop('se bcl vel tend')
@@ -673,6 +666,15 @@ MODULE ocn_time_integration_split
 
          oldBtrSubcycleTime = 1
          newBtrSubcycleTime = 2
+         
+         IF (config_debug_split_explicit) THEN
+            ! Open up temporary file
+            CALL mpas_new_unit(debugSplitExplicitUnit)
+            ! Note that it presumes we are running on a single core here ...
+            OPEN (UNIT=debugSplitExplicitUnit, &
+                  FILE=TRIM(config_debug_split_explicit_filename), FORM='formatted', &
+                  STATUS='UNKNOWN')
+         END IF 
 
          IF (TRIM(config_time_integrator) == 'unsplit_explicit') THEN
 
@@ -815,10 +817,6 @@ MODULE ocn_time_integration_split
                                        scratchPool)
             CALL mpas_pool_get_field(scratchPool, 'btrvel_temp', btrvel_tempField)
             CALL mpas_allocate_scratch_field(btrvel_tempField, .FALSE.)
-            
-            cellHaloComputeCounter = 0
-            edgeHaloComputeCounter = 0
-            neededHalos = 1 + config_n_btr_cor_iter
 
             CALL mpas_threading_barrier()
 
@@ -826,23 +824,8 @@ MODULE ocn_time_integration_split
             
             DO j = 1, nBtrSubcycles*config_btr_subcycle_loop_factor
                                      
-               IF (cellHaloComputeCounter < neededHalos) THEN 
-
-                  CALL mpas_threading_barrier()
-                  CALL mpas_timer_start('se halo subcycle')
-                  CALL &
-                  mpas_dmpar_exch_group_reuse_halo_exch(domain, subcycleGroupName, &
-                                                        timeLevel=oldBtrSubcycleTime)
-                  CALL mpas_threading_barrier()
-                  CALL mpas_timer_stop('se halo subcycle')
-
-                  cellHaloComputeCounter &
-                  = config_num_halos - MOD(config_num_halos, neededHalos)
-                  edgeHaloComputeCounter &
-                  = config_num_halos + 1 - MOD(config_num_halos, neededHalos)
-                  CALL mpas_threading_barrier()
-                  
-               END IF 
+               cellHaloComputeCounter = config_num_halos
+               edgeHaloComputeCounter = config_num_halos + 1
                ! 
                ! Barotropic subcycle: VELOCITY PREDICTOR STEP
                ! 
@@ -1018,24 +1001,12 @@ MODULE ocn_time_integration_split
                                             /areaCell(iCell)
                   END DO
                   !$OMP END DO
-                  
-                  ! This is from pwolfram, probably to be deleted layer.
-                  ! DO iCell = 1, nCells
-                  !    CALL mpas_log_write('debug $r', &
-                  !                        realArgs=(/sshSubcycleNew(iCell)/)) 
-                  ! END DO
 
                   IF (config_debug_split_explicit) THEN
-                  ! Add in write statement for debugging to print to a standard text 
-                  ! file (get single strip out) 4.000
-                  ! Add in a new line each time for the write statement
-                     DO iCell=1, nCells
-                        WRITE (debugSplitExplicitUnit,"(ES32.16)", ADVANCE='no') &
-                        sshSubcycleNew(iCell)  
-                        ! 4 hard coded for an example for brevity of case
-                     END DO 
-                     WRITE (debugSplitExplicitUnit, *) ' '
-                     ! WRITE (debugSplitExplicitUnit,*) sshSubcycleCur(:nCells:4)  
+                     ! Add in write statement for debugging to print to a standard text 
+                     ! file (get single strip out) 4.000
+                     ! Add in a new line each time for the write statement
+                     WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:4)  
                      ! 4 hard coded for an example for brevity of case
                      FLUSH (debugSplitExplicitUnit)
                   END IF                   
@@ -1177,9 +1148,20 @@ MODULE ocn_time_integration_split
                    
                END DO  ! block
 
-               edgeHaloComputeCounter = edgeHaloComputeCounter - 1
-               IF (BtrCorIter >= 1 .OR. config_btr_solve_SSH2 .EQV. .FALSE.) THEN
-                  cellHaloComputeCounter = cellHaloComputeCounter - 1
+               ! mrp 170503 This is the original line.  Go back to this once I verify 
+               ! that halo regions are truly three cells wide.
+               ! IF (edgeHaloComputeCounter == 1 .AND. &
+               !     BtrCorIter /= config_n_btr_cor_iter) THEN
+               ! replaced with this, to force a halo update on the first iteration:
+               IF (edgeHaloComputeCounter == 1 .OR. BtrCorIter == 1) THEN
+                  edgeHaloComputeCounter = config_num_halos + 1
+                  CALL mpas_timer_start("se halo btr vel corr")
+                  CALL mpas_dmpar_field_halo_exch(domain, &
+                                                  'normalBarotropicVelocitySubcycle', &
+                                                  timeLevel=newBtrSubcycleTime)
+                  CALL mpas_timer_stop("se halo btr vel corr")
+               ELSE
+                  edgeHaloComputeCounter = edgeHaloComputeCounter - 1
                END IF
 
             END DO ! Do BtrCorIter=1,config_n_btr_cor_iter
@@ -1331,9 +1313,27 @@ MODULE ocn_time_integration_split
                   
                END DO ! block
                
-               edgeHaloComputeCounter = config_num_halos + 1
-               
             END IF ! config_btr_solve_SSH2
+            
+            ! Boundary update on SSHnew
+            CALL mpas_timer_start("se halo subcycle")
+            CALL mpas_dmpar_exch_group_create(domain, subcycleGroupName)
+            CALL mpas_dmpar_exch_group_add_field(domain, subcycleGroupName, &
+                                                 'sshSubcycle', &
+                                                 timeLevel=newBtrSubcycleTime)
+            CALL mpas_dmpar_exch_group_add_field(domain, subcycleGroupName, &
+                                                 'normalBarotropicVelocitySubcycle', &
+                                                 timeLevel=newBtrSubcycleTime)
+
+            CALL mpas_threading_barrier()
+            CALL mpas_dmpar_exch_group_full_halo_exch(domain, subcycleGroupName)
+
+            CALL mpas_dmpar_exch_group_destroy(domain, subcycleGroupName)
+            CALL mpas_timer_stop("se halo subcycle")
+
+            ! Reset the halo counters
+            edgeHaloComputeCounter = config_num_halos + 1
+            cellHaloComputeCounter = config_num_halos            
             ! 
             ! Barotropic subcycle: Accumulate running sums, advance timestep pointers
             ! 
@@ -1555,6 +1555,13 @@ MODULE ocn_time_integration_split
             CALL mpas_timer_stop('btr se ssh verif')
 
          END IF ! split_explicit
+         
+         IF (config_debug_split_explicit) THEN
+            ! Close file
+            FLUSH (debugSplitExplicitUnit)
+            CLOSE (debugSplitExplicitUnit)
+            CALL mpas_release_unit(debugSplitExplicitUnit)
+         END IF
 
          CALL mpas_timer_stop("se btr vel")
          !
