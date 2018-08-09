@@ -1,12 +1,12 @@
 <template>
 	<namelist>
 		<option name="config_ocean_run_mode">'forward'</option>
-		<option name="config_dt">'00:01:00'</option>
-		<option name="config_btr_dt">'00:00:03'</option>
-		<option name="config_run_duration">'0000_02:00:00'</option>
+		<option name="config_dt">'00:10:00'</option>
+		<option name="config_btr_dt">'00:01:00'</option>
+		<option name="config_run_duration">'0000_00:10:00'</option>
 		<option name="config_block_decomp_file_prefix">'graph.info.part.'</option>
-		<option name="config_pio_num_iotasks">1</option>
-		<option name="config_pio_stride">4</option>
+		<option name="config_pio_num_iotasks">0</option>
+		<option name="config_pio_stride">1</option>
 		<option name="config_write_output_on_startup">.false.</option>
 		<option name="config_time_integrator">'split_explicit'</option>
 		<option name="config_use_mom_del2">.true.</option>
@@ -16,6 +16,8 @@
 		<option name="config_implicit_bottom_drag_coeff">1.0e-2</option>
 		<option name="config_use_const_visc">.true.</option>
 		<option name="config_vert_visc">1.0e-4</option>
+		<option name="config_debug_split_explicit">.true.</option>
+		<option name="config_debug_split_explicit_filename">'BtrSubCycles.txt'</option>
 	</namelist>
 
 	<streams>
@@ -28,7 +30,7 @@
 		<stream name="output">
 			<attribute name="type">output</attribute>
 			<attribute name="filename_template">output.nc</attribute>
-			<attribute name="output_interval">0000_00:01:00</attribute>
+			<attribute name="output_interval">0000_00:10:00</attribute>
 			<attribute name="clobber_mode">truncate</attribute>
 			<add_contents>
 				<member name="tracers" type="var_struct"/>

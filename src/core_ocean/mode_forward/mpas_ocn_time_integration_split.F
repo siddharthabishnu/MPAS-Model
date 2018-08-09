@@ -1006,8 +1006,24 @@ MODULE ocn_time_integration_split
                      ! Add in write statement for debugging to print to a standard text 
                      ! file (get single strip out) 4.000
                      ! Add in a new line each time for the write statement
-                     WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:4)  
+!                    WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:40)  
+!                    WRITE (debugSplitExplicitUnit,*)   
                      ! 4 hard coded for an example for brevity of case
+                     WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:40)                      
+!                    DO iCell = 1, nCells
+!                       WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:40)                      
+!                       IF (MOD(iCell,40) /= 1) THEN
+!                          WRITE(debugSplitExplicitUnit,*,ADVANCE='NO') sshSubcycleNew(iCell)
+!                       END IF 
+!                       IF (MOD(iCell,40) /= 0) THEN
+!                          WRITE(debugSplitExplicitUnit,"(ES32.16)", ADVANCE='NO') &
+!                          sshSubcycleNew(iCell)
+!                       ELSE
+!                          WRITE(debugSplitExplicitUnit,"(ES32.16)") &
+!                          sshSubcycleNew(iCell)
+!                          WRITE(debugSplitExplicitUnit,*) ' '
+!                       END IF 
+!                    END DO
                      FLUSH (debugSplitExplicitUnit)
                   END IF                   
                   ! Asarje: Changed to avoid redundant computations when 
