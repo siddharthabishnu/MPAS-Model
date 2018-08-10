@@ -1009,7 +1009,7 @@ MODULE ocn_time_integration_split
 !                    WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:40)  
 !                    WRITE (debugSplitExplicitUnit,*)   
                      ! 4 hard coded for an example for brevity of case
-                     WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:40)                      
+                     WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:4)                      
 !                    DO iCell = 1, nCells
 !                       WRITE (debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:40)                      
 !                       IF (MOD(iCell,40) /= 1) THEN
