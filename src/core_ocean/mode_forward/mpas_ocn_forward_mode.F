@@ -1,22 +1,24 @@
-! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
-! and the University Corporation for Atmospheric Research (UCAR).
-!
-! Unless noted otherwise source code is licensed under the BSD license.
-! Additional copyright and license information can be found in the LICENSE file
-! distributed with this code, or at http://mpas-dev.github.com/license.html
-!
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  ocn_forward_mode
-!
-!> \brief Main driver for MPAS ocean core
-!> \author Doug Jacobsen, Mark Petersen, Todd Ringler
-!> \date   September 2011
-!> \details
-!>  This module contains initialization and timestep drivers for
-!>  the MPAS ocean core.
-!
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------!
+! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)                 !
+! and the University Corporation for Atmospheric Research (UCAR).               !
+!                                                                               !
+! Unless noted otherwise source code is licensed under the BSD license.         !
+! Additional copyright and license information can be found in the LICENSE file !
+! distributed with this code, or at http://mpas-dev.github.com/license.html     !
+!-------------------------------------------------------------------------------!
+
+!----------------------------------------------------------------!
+!                                                                !
+!  ocn_forward_mode                                              !
+!                                                                !
+!> \brief Main driver for MPAS ocean core                        !
+!> \author Doug Jacobsen, Mark Petersen, Todd Ringler            !
+!> \date   September 2011                                        !
+!> \details                                                      !
+!>  This module contains initialization and timestep drivers for !
+!>  the MPAS ocean core.                                         !                                                                                               !
+!                                                                !
+!----------------------------------------------------------------!
 
 module ocn_forward_mode
 
@@ -87,20 +89,20 @@ module ocn_forward_mode
    public :: ocn_forward_mode_init, ocn_forward_mode_run, ocn_forward_mode_finalize
    public :: ocn_forward_mode_setup_clock
 
-   contains
+contains
 
-!***********************************************************************
-!
-!  function ocn_forward_mode_init
-!
-!> \brief   Initialize MPAS-Ocean core
-!> \author  Doug Jacobsen, Mark Petersen, Todd Ringler
-!> \date    September 2011
-!> \details
-!>  This function calls all initializations required to begin a
-!>  simulation with MPAS-Ocean
-!
-!-----------------------------------------------------------------------
+!---------------------------------------------------------------!
+!                                                               !                                                               !
+!  function ocn_forward_mode_init                               !
+!                                                               !
+!> \brief   Initialize MPAS-Ocean core                          !
+!> \author  Doug Jacobsen, Mark Petersen, Todd Ringler          !
+!> \date    September 2011                                      !
+!> \details                                                     !
+!>  This function calls all initializations required to begin a !
+!>  simulation with MPAS-Ocean                                  !
+!                                                               !
+!---------------------------------------------------------------!
 
    function ocn_forward_mode_init(domain, startTimeStamp) result(ierr)!{{{
 
@@ -134,9 +136,9 @@ module ocn_forward_mode
       logical, pointer :: config_use_surface_salinity_monthly_restoring
       ierr = 0
 
-      !
-      ! Set startTimeStamp based on the start time of the simulation clock
-      !
+      !--------------------------------------------------------------------!
+      ! Set startTimeStamp based on the start time of the simulation clock !
+      !--------------------------------------------------------------------!
       startTime = mpas_get_clock_time(domain % clock, MPAS_START_TIME, err_tmp)
       call mpas_get_time(startTime, dateTimeString=startTimeStamp)
       ierr = ior(ierr, err_tmp)
@@ -152,12 +154,12 @@ module ocn_forward_mode
       call mpas_pool_get_config(domain % configs, 'config_maxMeshDensity', config_maxMeshDensity)
       call mpas_pool_get_config(domain % configs, 'config_conduct_tests', config_conduct_tests)
       call mpas_pool_get_config(domain % configs, 'config_use_surface_salinity_monthly_restoring', &
-                                config_use_surface_salinity_monthly_restoring)
+         config_use_surface_salinity_monthly_restoring)
       call mpas_pool_get_config(domain % configs, 'config_surface_salinity_monthly_restoring_compute_interval', &
-              config_surface_salinity_monthly_restoring_compute_interval)
-      !
-      ! Read input data for model
-      !
+         config_surface_salinity_monthly_restoring_compute_interval)
+      !---------------------------!
+      ! Read input data for model !
+      !---------------------------!
       call mpas_timer_start('io_read')
       call MPAS_stream_mgr_read(domain % streamManager, streamID='mesh', whence=MPAS_STREAM_NEAREST, ierr=err_tmp)
 
@@ -264,7 +266,7 @@ module ocn_forward_mode
       ierr = ior(ierr, err_tmp)
 
       if(ierr.eq.1) then
-          call mpas_log_write('An error was encountered while initializing the MPAS-Ocean forward mode', MPAS_LOG_CRIT)
+         call mpas_log_write('An error was encountered while initializing the MPAS-Ocean forward mode', MPAS_LOG_CRIT)
       endif
 
       call ocn_init_metadata(domain)
@@ -275,59 +277,59 @@ module ocn_forward_mode
 
       call mpas_pool_get_config(ocnConfigs, 'config_time_integrator', config_time_integrator)
       if (trim(config_time_integrator) == 'RK4') then
-         ! no init needed
+         ! No init needed
       elseif (trim(config_time_integrator) == 'split_explicit' &
-          .or.trim(config_time_integrator) == 'unsplit_explicit') then
+         .or.trim(config_time_integrator) == 'unsplit_explicit') then
          call ocn_time_integration_split_init(domain)
       elseif (trim(config_time_integrator) == 'split_explicit_filtered') then
          call ocn_time_integration_split_filtered_init(domain)
       elseif (trim(config_time_integrator) == 'split_explicit_unfiltered') then
          call ocn_time_integration_split_unfiltered_init(domain)
       elseif (trim(config_time_integrator) == 'forward_euler') then
-         ! no init needed
+         ! No init needed
       else
-          call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
-             '   Check choices in Registry.xml file.', MPAS_LOG_CRIT)
+         call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
+            '   Check choices in Registry.xml file.', MPAS_LOG_CRIT)
       endif
 
       call mpas_log_write(' Vertical coordinate movement is: ' // trim(config_vert_coord_movement))
 
       if (config_vert_coord_movement.ne.'fixed'.and. &
-          config_vert_coord_movement.ne.'uniform_stretching'.and. &
-          config_vert_coord_movement.ne.'impermeable_interfaces'.and. &
-          config_vert_coord_movement.ne.'user_specified') then
+         config_vert_coord_movement.ne.'uniform_stretching'.and. &
+         config_vert_coord_movement.ne.'impermeable_interfaces'.and. &
+         config_vert_coord_movement.ne.'user_specified') then
          call mpas_log_write(' Incorrect choice of config_vert_coord_movement.')
          call mpas_log_write('Incorrect choice of config_vert_coord_movement.', MPAS_LOG_CRIT)
       endif
 
       if (config_vert_coord_movement .ne. 'impermeable_interfaces' &
-             .and. config_pressure_gradient_type .eq. 'MontgomeryPotential') then
+         .and. config_pressure_gradient_type .eq. 'MontgomeryPotential') then
          call mpas_log_write( &
-             'Incorrect combination of config_vert_coord_movement and config_pressure_gradient_type', MPAS_LOG_CRIT)
+            'Incorrect combination of config_vert_coord_movement and config_pressure_gradient_type', MPAS_LOG_CRIT)
       end if
 
       if (config_filter_btr_mode.and. &
-          config_vert_coord_movement.ne.'fixed')then
+         config_vert_coord_movement.ne.'fixed')then
          call mpas_log_write('filter_btr_mode has only been tested with config_vert_coord_movement=fixed.', MPAS_LOG_CRIT)
       endif
 
-      ! find the maximum value of the meshDensity
+      ! Find the maximum value of the meshDensity
       if (config_maxMeshDensity < 0.0_RKIND) then
-        maxDensity=-1
-        block => domain % blocklist
-        do while (associated(block))
-          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-          call mpas_pool_get_array(meshPool, 'meshDensity', meshDensity)
-          maxDensity = max(maxDensity, maxval(meshDensity))
-          block => block % next
-        end do
-        call mpas_dmpar_max_real(domain % dminfo, maxDensity, maxDensity_global)
-        config_maxMeshDensity = maxDensity_global
+         maxDensity=-1
+         block => domain % blocklist
+         do while (associated(block))
+            call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+            call mpas_pool_get_array(meshPool, 'meshDensity', meshDensity)
+            maxDensity = max(maxDensity, maxval(meshDensity))
+            block => block % next
+         end do
+         call mpas_dmpar_max_real(domain % dminfo, maxDensity, maxDensity_global)
+         config_maxMeshDensity = maxDensity_global
       endif
 
-      !
-      ! Initialize core
-      !
+      !-----------------!
+      ! Initialize core !
+      !-----------------!
       timeStep = mpas_get_clock_timestep(domain % clock, ierr=err_tmp)
       call mpas_get_timeInterval(timeStep, dt=dt)
 
@@ -336,7 +338,7 @@ module ocn_forward_mode
          call ocn_init_routines_block(block, dt, ierr)
 
          if(ierr.eq.1) then
-             call mpas_log_write('An error was encountered in ocn_init_routines_block', MPAS_LOG_CRIT)
+            call mpas_log_write('An error was encountered in ocn_init_routines_block', MPAS_LOG_CRIT)
          endif
 
          call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
@@ -349,7 +351,7 @@ module ocn_forward_mode
             simulationStartTime = startTimeStamp
          end if
 
-         ! compute time since start of simulation, in days
+         ! Compute time since start of simulation, in days
          call mpas_pool_get_array(diagnosticsPool, 'daysSinceStartOfSim',daysSinceStartOfSim)
          call mpas_set_time(xtime_timeType, dateTimeString=xtime)
          call mpas_set_time(simulationStartTime_timeType, dateTimeString=simulationStartTime)
@@ -368,25 +370,25 @@ module ocn_forward_mode
       call ocn_analysis_init(domain, err_tmp)
       ierr = ior(ierr, err_tmp)
       if(ierr.eq.1) then
-          call mpas_log_write('An error was encountered while initializing ' &
-               // 'the analysis members in the MPAS-Ocean forward mode', MPAS_LOG_CRIT)
+         call mpas_log_write('An error was encountered while initializing ' &
+            // 'the analysis members in the MPAS-Ocean forward mode', MPAS_LOG_CRIT)
       endif
 
       if (config_use_surface_salinity_monthly_restoring) then
-      !initialize the alarm for reading salinity data for restoring
-      if ( config_surface_salinity_monthly_restoring_compute_interval == 'dt') then
-         alarmTimeStep = mpas_get_clock_timestep(domain % clock, err_tmp)
-         call mpas_get_timeInterval(alarmTimeStep, timeString= &
-                      config_surface_salinity_monthly_restoring_compute_interval, ierr=err_tmp)
-      endif
-      alarmTime = mpas_get_clock_time(domain % clock, MPAS_START_TIME, ierr=err_tmp)
+         ! Initialize the alarm for reading salinity data for restoring
+         if ( config_surface_salinity_monthly_restoring_compute_interval == 'dt') then
+            alarmTimeStep = mpas_get_clock_timestep(domain % clock, err_tmp)
+            call mpas_get_timeInterval(alarmTimeStep, timeString= &
+               config_surface_salinity_monthly_restoring_compute_interval, ierr=err_tmp)
+         endif
+         alarmTime = mpas_get_clock_time(domain % clock, MPAS_START_TIME, ierr=err_tmp)
 
-      call mpas_set_timeInterval(alarmTimeStep, timeString= &
-              config_surface_salinity_monthly_restoring_compute_interval, ierr=err_tmp)
+         call mpas_set_timeInterval(alarmTimeStep, timeString= &
+            config_surface_salinity_monthly_restoring_compute_interval, ierr=err_tmp)
 
-      call mpas_add_clock_alarm(domain % clock, 'salinityDataReadAlarm', alarmTime, &
-                alarmTimeInterval=alarmTimeStep, ierr=err_tmp)
-      call mpas_reset_clock_alarm(domain % clock, 'salinityDataReadAlarm', ierr=err_tmp)
+         call mpas_add_clock_alarm(domain % clock, 'salinityDataReadAlarm', alarmTime, &
+            alarmTimeInterval=alarmTimeStep, ierr=err_tmp)
+         call mpas_reset_clock_alarm(domain % clock, 'salinityDataReadAlarm', ierr=err_tmp)
 
       endif
 
@@ -397,17 +399,17 @@ module ocn_forward_mode
 
    end function ocn_forward_mode_init!}}}
 
-!***********************************************************************
-!
-!  function ocn_forward_mode_setup_clock
-!
-!> \brief   Initialize timer variables
-!> \author  Doug Jacobsen, Mark Petersen, Todd Ringler
-!> \date    September 2011
-!> \details
-!>  This routine initializes all timer variables
-!
-!-----------------------------------------------------------------------
+!------------------------------------------------------!
+!                                                      !
+!  function ocn_forward_mode_setup_clock               !
+!                                                      !
+!> \brief   Initialize timer variables                 !
+!> \author  Doug Jacobsen, Mark Petersen, Todd Ringler !
+!> \date    September 2011                             !
+!> \details                                            !
+!>  This routine initializes all timer variables       !
+!                                                      !
+!------------------------------------------------------!
 
    function ocn_forward_mode_setup_clock(core_clock, configs) result(ierr)!{{{
 
@@ -456,24 +458,24 @@ module ocn_forward_mode
          call mpas_set_time(curr_time=stopTime, dateTimeString=config_stop_time, ierr=err_tmp)
          call mpas_create_clock(core_clock, startTime=startTime, timeStep=timeStep, stopTime=stopTime, ierr=err_tmp)
       else
-          call mpas_log_write('Error: Neither config_run_duration nor config_stop_time were specified.')
-          ierr = 1
+         call mpas_log_write('Error: Neither config_run_duration nor config_stop_time were specified.')
+         ierr = 1
       end if
 
    end function ocn_forward_mode_setup_clock!}}}
 
-!***********************************************************************
-!
-!  function ocn_forward_mode_run
-!
-!> \brief   Main driver for MPAS-Ocean time-stepping
-!> \author  Doug Jacobsen, Mark Petersen, Todd Ringler
-!> \date    September 2011
-!> \details
-!>  This function includes the time-stepping loop, and calls
-!>  routines to write output and restart files.
-!
-!-----------------------------------------------------------------------
+!------------------------------------------------------------!
+!                                                            !
+!  function ocn_forward_mode_run                             !
+!                                                            !
+!> \brief   Main driver for MPAS-Ocean time-stepping         !
+!> \author  Doug Jacobsen, Mark Petersen, Todd Ringler       !
+!> \date    September 2011                                   !
+!> \details                                                  !
+!>  This function includes the time-stepping loop, and calls !
+!>  routines to write output and restart files.              !
+!                                                            !
+!------------------------------------------------------------!
 
    function ocn_forward_mode_run(domain) result(ierr)!{{{
 
@@ -510,9 +512,9 @@ module ocn_forward_mode
       call mpas_pool_get_config(domain % configs, 'config_sw_absorption_type', config_sw_absorption_type)
       call mpas_pool_get_config(domain % configs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       call mpas_pool_get_config(domain % configs, 'config_use_activeTracers_surface_restoring',  &
-                                                   config_use_activeTracers_surface_restoring)
+         config_use_activeTracers_surface_restoring)
       call mpas_pool_get_config(domain % configs, 'config_use_surface_salinity_monthly_restoring',  &
-                                                   config_use_surface_salinity_monthly_restoring)
+         config_use_surface_salinity_monthly_restoring)
 
       ! Eventually, dt should be domain specific
       timeStep = mpas_get_clock_timestep(domain % clock, ierr=ierr)
@@ -527,33 +529,37 @@ module ocn_forward_mode
       call ocn_analysis_compute_startup(domain, err)
 
       if (config_write_output_on_startup) then
-          call mpas_timer_start('io_write')
-          call mpas_stream_mgr_write(domain % streamManager, 'output', forceWriteNow=.true., ierr=ierr)
-          call mpas_timer_stop('io_write')
+         call mpas_timer_start('io_write')
+         call mpas_stream_mgr_write(domain % streamManager, 'output', forceWriteNow=.true., ierr=ierr)
+         call mpas_timer_stop('io_write')
       endif
 
-      ! read initial data required for variable shortwave
+      ! Read initial data required for variable shortwave
       call mpas_timer_start('io_shortwave',.false.)
       call ocn_get_shortWaveData(domain % streamManager, domain, domain % clock, .true.)
       call mpas_timer_stop('io_shortwave')
 
-      ! read initial data required for ecosys forcing
+      ! Read initial data required for ecosys forcing
       if (config_use_ecosysTracers) then
-        call mpas_timer_start('io_ecosys',.false.)
-        call ocn_get_ecosysData(domain % streamManager, domain, domain % clock, .true.)
-        call mpas_timer_stop('io_ecosys')
+         call mpas_timer_start('io_ecosys',.false.)
+         call ocn_get_ecosysData(domain % streamManager, domain, domain % clock, .true.)
+         call mpas_timer_stop('io_ecosys')
       endif
 
-      ! read initial data required for monthly surface salinity restoring
-      ! always execute this call as initial data needed regardless of alarm
+      !---------------------------------------------------------------------!
+      ! Read initial data required for monthly surface salinity restoring   !
+      ! Always execute this call as initial data needed regardless of alarm !
+      !---------------------------------------------------------------------!
       if (config_use_activeTracers_surface_restoring .and. config_use_surface_salinity_monthly_restoring) then
-        call mpas_timer_start('io_monthly_surface_salinity',.false.)
-        call ocn_get_surfaceSalinityData(domain % streamManager, domain, domain % clock, .true.)
-        call mpas_timer_stop('io_monthly_surface_salinity')
+         call mpas_timer_start('io_monthly_surface_salinity',.false.)
+         call ocn_get_surfaceSalinityData(domain % streamManager, domain, domain % clock, .true.)
+         call mpas_timer_stop('io_monthly_surface_salinity')
       endif
-
-      ! During integration, time level 1 stores the model state at the beginning of the
-      !   time step, and time level 2 stores the state advanced dt in time by timestep(...)
+      
+      !-----------------------------------------------------------------------------------!
+      ! During integration, time level 1 stores the model state at the beginning of the   !
+      ! time step, and time level 2 stores the state advanced dt in time by timestep(...) !
+      !-----------------------------------------------------------------------------------!
       itimestep = 0
 
       do while (.not. mpas_is_clock_stop_time(domain % clock))
@@ -581,20 +587,20 @@ module ocn_forward_mode
 #endif
          block_ptr => domain % blocklist
          do while(associated(block_ptr))
-           call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-           call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
-           call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-           call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
-           call mpas_pool_get_subpool(block_ptr % structs, 'scratch', scratchPool)
-           call ocn_forcing_build_fraction_absorbed_array(meshPool, statePool, diagnosticsPool, forcingPool, ierr, 1)
-           call mpas_timer_start("land_ice_build_arrays")
-           call ocn_surface_land_ice_fluxes_build_arrays(meshPool, diagnosticsPool, &
-                                                         forcingPool, scratchPool, statePool, dt, err)
-           call mpas_timer_stop("land_ice_build_arrays")
+            call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+            call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
+            call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+            call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
+            call mpas_pool_get_subpool(block_ptr % structs, 'scratch', scratchPool)
+            call ocn_forcing_build_fraction_absorbed_array(meshPool, statePool, diagnosticsPool, forcingPool, ierr, 1)
+            call mpas_timer_start("land_ice_build_arrays")
+            call ocn_surface_land_ice_fluxes_build_arrays(meshPool, diagnosticsPool, &
+               forcingPool, scratchPool, statePool, dt, err)
+            call mpas_timer_stop("land_ice_build_arrays")
 
-           call ocn_frazil_forcing_build_arrays(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
+            call ocn_frazil_forcing_build_arrays(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
 
-           block_ptr => block_ptr % next
+            block_ptr => block_ptr % next
          end do
 
          call mpas_timer_start("time integration")
@@ -635,7 +641,7 @@ module ocn_forward_mode
          call mpas_timer_stop('reset_io_alarms')
 
          if ( mpas_stream_mgr_ringing_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_OUTPUT, &
-                                             ierr=ierr) ) then
+            ierr=ierr) ) then
 #ifdef MPAS_DEBUG
             call mpas_log_write( '   Writing restart timestamp file')
 #endif
@@ -670,26 +676,26 @@ module ocn_forward_mode
          call mpas_stream_mgr_reset_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)
          call mpas_timer_stop('reset_io_alarms')
 
-         ! read next time level data required for variable shortwave
+         ! Read next time level data required for variable shortwave
          call mpas_timer_start('io_shortwave',.false.)
          call ocn_get_shortWaveData(domain % streamManager, domain, domain % clock, .false.)
          call mpas_timer_stop('io_shortwave')
 
-         ! read next time level data required for ecosys forcing
+         ! Read next time level data required for ecosys forcing
          if (config_use_ecosysTracers) then
-           call mpas_timer_start('io_ecosys',.false.)
-           call ocn_get_ecosysData(domain % streamManager, domain, domain % clock, .false.)
-           call mpas_timer_stop('io_ecosys')
+            call mpas_timer_start('io_ecosys',.false.)
+            call ocn_get_ecosysData(domain % streamManager, domain, domain % clock, .false.)
+            call mpas_timer_stop('io_ecosys')
          endif
 
-         ! read next time level data required for monthly surface salinity restoring
+         ! Read next time level data required for monthly surface salinity restoring
          if (config_use_activeTracers_surface_restoring .and. config_use_surface_salinity_monthly_restoring) then
-           if ( mpas_is_alarm_ringing(domain % clock, 'salinityDataReadAlarm', ierr=err_tmp) ) then
-              call mpas_reset_clock_alarm(domain % clock, 'salinityDataReadAlarm', ierr=err_tmp)
-              call mpas_timer_start('io_monthly_surface_salinity',.false.)
-              call ocn_get_surfaceSalinityData(domain % streamManager, domain, domain % clock, .false.)
-              call mpas_timer_stop('io_monthly_surface_salinity')
-           endif
+            if ( mpas_is_alarm_ringing(domain % clock, 'salinityDataReadAlarm', ierr=err_tmp) ) then
+               call mpas_reset_clock_alarm(domain % clock, 'salinityDataReadAlarm', ierr=err_tmp)
+               call mpas_timer_start('io_monthly_surface_salinity',.false.)
+               call ocn_get_surfaceSalinityData(domain % streamManager, domain, domain % clock, .false.)
+               call mpas_timer_stop('io_monthly_surface_salinity')
+            endif
          endif
 
          ! Validate that the state is OK to run with for the next timestep.
@@ -699,17 +705,17 @@ module ocn_forward_mode
 
    end function ocn_forward_mode_run!}}}
 
-!***********************************************************************
-!
-!  function ocn_forward_mode_finalize
-!
-!> \brief   Finalize MPAS-Ocean Forward Mode
-!> \author  Doug Jacobsen, Mark Petersen, Todd Ringler
-!> \date    September 2011
-!> \details
-!>  This function finalizes the MPAS-Ocean core in forward mode.
-!
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------!
+!                                                                !
+!  function ocn_forward_mode_finalize                            !
+!                                                                !
+!> \brief   Finalize MPAS-Ocean Forward Mode                     !
+!> \author  Doug Jacobsen, Mark Petersen, Todd Ringler           !
+!> \date    September 2011                                       !
+!> \details                                                      !
+!>  This function finalizes the MPAS-Ocean core in forward mode. !
+!                                                                !
+!----------------------------------------------------------------!
 
    function ocn_forward_mode_finalize(domain) result(iErr)!{{{
 

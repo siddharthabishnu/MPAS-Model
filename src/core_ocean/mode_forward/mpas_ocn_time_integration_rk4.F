@@ -1,21 +1,25 @@
-! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
-! and the University Corporation for Atmospheric Research (UCAR).
-!
-! Unless noted otherwise source code is licensed under the BSD license.
-! Additional copyright and license information can be found in the LICENSE file
-! distributed with this code, or at http://mpas-dev.github.com/license.html
-!
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  ocn_time_integration_rk4
-!
-!> \brief MPAS ocean RK4 Time integration scheme
-!> \author Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date   September 2011
-!> \details
-!>  This module contains the RK4 time integration routine.
-!
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------!
+!                                                                               !
+! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)                 !
+! and the University Corporation for Atmospheric Research (UCAR).               !
+!                                                                               !
+! Unless noted otherwise source code is licensed under the BSD license.         !
+! Additional copyright and license information can be found in the LICENSE file !
+! distributed with this code, or at http://mpas-dev.github.com/license.html.    !
+!                                                                               !
+!-------------------------------------------------------------------------------!
+
+!----------------------------------------------------------!
+!                                                          !
+!  ocn_time_integration_rk4                                !
+!                                                          !
+!> \brief MPAS ocean RK4 Time integration scheme           !
+!> \author Mark Petersen, Doug Jacobsen, Todd Ringler      !
+!> \date   September 2011                                  !
+!> \details                                                !
+!>  This module contains the RK4 time integration routine. !
+!                                                          !
+!----------------------------------------------------------!
 
 module ocn_time_integration_rk4
 
@@ -43,44 +47,44 @@ module ocn_time_integration_rk4
    private
    save
 
-   !--------------------------------------------------------------------
-   !
-   ! Public parameters
-   !
-   !--------------------------------------------------------------------
+   !-------------------!
+   !                   !
+   ! Public parameters !
+   !                   !
+   !-------------------!
 
-   !--------------------------------------------------------------------
-   !
-   ! Public member functions
-   !
-   !--------------------------------------------------------------------
+   !-------------------------!
+   !                         !
+   ! Public member functions !
+   !                         !
+   !-------------------------!
 
    public :: ocn_time_integrator_rk4
 
-   contains
+contains
 
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  ocn_time_integrator_rk4
-!
-!> \brief MPAS ocean RK4 Time integration scheme
-!> \author Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date   September 2011
-!> \details
-!>  This routine integrates one timestep (dt) using an RK4 time integrator.
-!
-!-----------------------------------------------------------------------
+!---------------------------------------------------------------------------!
+!                                                                           !
+!  ocn_time_integrator_rk4                                                  !
+!                                                                           !
+!> \brief MPAS ocean RK4 Time integration scheme                            !
+!> \author Mark Petersen, Doug Jacobsen, Todd Ringler                       !
+!> \date   September 2011                                                   !
+!> \details                                                                 !
+!>  This routine integrates one timestep (dt) using an RK4 time integrator. !
+!                                                                           !
+!---------------------------------------------------------------------------!
 
    subroutine ocn_time_integrator_rk4(domain, dt)!{{{
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   ! Advance model state forward in time by the specified time step using
-   !   4th order Runge-Kutta
-   !
-   ! Input: domain - current model state in time level 1 (e.g., time_levs(1)state%h(:,:))
-   !                 plus mesh meta-data
-   ! Output: domain - upon exit, time level 2 (e.g., time_levs(2)%state%h(:,:)) contains
-   !                  model state advanced forward in time by dt seconds
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !--------------------------------------------------------------------------------------!
+      ! Advance model state forward in time by the specified time step using                 !
+      ! 4th order Runge-Kutta                                                                !
+      !                                                                                      !
+      ! Input: domain - current model state in time level 1 (e.g., time_levs(1)state%h(:,:)) !
+      !                 plus mesh meta-data                                                  !
+      ! Output: domain - upon exit, time level 2 (e.g., time_levs(2)%state%h(:,:)) contains  !
+      !                  model state advanced forward in time by dt seconds                  !
+      !--------------------------------------------------------------------------------------!
 
       implicit none
 
@@ -111,7 +115,7 @@ module ocn_time_integration_rk4
 
       real (kind=RKIND) :: coef
       real (kind=RKIND), dimension(:,:), pointer :: &
-        vertViscTopOfEdge, vertDiffTopOfCell
+         vertViscTopOfEdge, vertDiffTopOfCell
       real (kind=RKIND), dimension(:), allocatable:: A,C,uTemp
       real (kind=RKIND), dimension(:,:), allocatable:: tracersTemp
 
@@ -149,7 +153,7 @@ module ocn_time_integration_rk4
 
       ! Tend Array Pointers
       real (kind=RKIND), dimension(:,:), pointer :: highFreqThicknessTend, lowFreqDivergenceTend, normalVelocityTend, &
-                                                    layerThicknessTend
+         layerThicknessTend
       real (kind=RKIND), dimension(:,:,:), pointer :: tracersGroupTend
 
       ! Diagnostics Array Pointers
@@ -198,12 +202,12 @@ module ocn_time_integration_rk4
       call mpas_pool_get_config(domain % configs, 'config_disable_thick_all_tend', config_disable_thick_all_tend)
       call mpas_pool_get_config(domain % configs, 'config_disable_tr_all_tend', config_disable_tr_all_tend)
 
-      !
-      ! Initialize time_levs(2) with state at current time
-      ! Initialize first RK state
-      ! Couple tracers time_levs(2) with layerThickness in time-levels
-      ! Initialize RK weights
-      !
+      !----------------------------------------------------------------!
+      ! Initialize time_levs(2) with state at current time             !
+      ! Initialize first RK state                                      !
+      ! Couple tracers time_levs(2) with layerThickness in time-levels !
+      ! Initialize RK weights                                          !
+      !----------------------------------------------------------------!
       block => domain % blocklist
       do while (associated(block))
          call mpas_pool_get_subpool(block % structs, 'state', statePool)
@@ -269,19 +273,19 @@ module ocn_time_integration_rk4
          end do
 
          if (associated(highFreqThicknessCur)) then
-              !$omp do schedule(runtime)
-              do iCell = 1, nCells
-                 highFreqThicknessNew(:, iCell) = highFreqThicknessCur(:, iCell)
-              end do
-              !$omp end do
+            !$omp do schedule(runtime)
+            do iCell = 1, nCells
+               highFreqThicknessNew(:, iCell) = highFreqThicknessCur(:, iCell)
+            end do
+            !$omp end do
          end if
 
          if (associated(lowFreqDivergenceCur)) then
-              !$omp do schedule(runtime)
-              do iCell = 1, nCells
-                 lowFreqDivergenceNew(:, iCell) = lowFreqDivergenceCur(:, iCell)
-              end do
-              !$omp end do
+            !$omp do schedule(runtime)
+            do iCell = 1, nCells
+               lowFreqDivergenceNew(:, iCell) = lowFreqDivergenceCur(:, iCell)
+            end do
+            !$omp end do
          end if
 
          block => block % next
@@ -319,34 +323,38 @@ module ocn_time_integration_rk4
       end do
 
       call mpas_threading_barrier()
-
-      ! Fourth-order Runge-Kutta, solving dy/dt = f(t,y) is typically written as follows
-      ! where h = delta t is the large time step.  Here f(t,y) is the right hand side,
-      ! called the tendencies in the code below.
-      ! k_1 = h f(t_n        , y_n)
-      ! k_2 = h f(t_n + 1/2 h, y_n + 1/2 k_1)
-      ! k_3 = h f(t_n + 1/2 h, y_n + 1/2 k_2)
-      ! k_4 = h f(t_n +     h, y_n +     k_3)
-      ! y_{n+1} = y_n + 1/6 k_1 + 1/3 k_2 + 1/3 k_3 + 1/6 k_4
-
-      ! in index notation:
-      ! k_{j+1} = h f(t_n + a_j h, y_n + a_j k_j)
-      ! y_{n+1} = y_n + sum ( b_j k_j )
-
-      ! The coefficients of k_j are b_j = (1/6, 1/3, 1/3, 1/6) and are
-      ! initialized here as delta t * b_j:
+      !----------------------------------------------------------------------------------!
+      ! Fourth-order Runge-Kutta, solving dy/dt = f(t,y) is typically written as follows !
+      ! where h = delta t is the large time step.  Here f(t,y) is the right hand side,   !
+      ! called the tendencies in the code below.                                         !
+      ! k_1 = h f(t_n        , y_n)                                                      !
+      ! k_2 = h f(t_n + 1/2 h, y_n + 1/2 k_1)                                            !
+      ! k_3 = h f(t_n + 1/2 h, y_n + 1/2 k_2)                                            !
+      ! k_4 = h f(t_n +     h, y_n +     k_3)                                            !
+      ! y_{n+1} = y_n + 1/6 k_1 + 1/3 k_2 + 1/3 k_3 + 1/6 k_4                            !
+      !----------------------------------------------------------------------------------!
+      !-------------------------------------------!
+      ! In index notation:                        !
+      ! k_{j+1} = h f(t_n + a_j h, y_n + a_j k_j) !
+      ! y_{n+1} = y_n + sum ( b_j k_j )           !
+      !-------------------------------------------!
+      !----------------------------------------------------------------!
+      ! The coefficients of k_j are b_j = (1/6, 1/3, 1/3, 1/6) and are !
+      ! initialized here as delta t * b_j:                             !
+      !----------------------------------------------------------------!
 
       rk_weights(1) = dt/6.
       rk_weights(2) = dt/3.
       rk_weights(3) = dt/3.
       rk_weights(4) = dt/6.
 
-      ! The a_j coefficients of h in the computation of k_j are typically written (0, 1/2, 1/2, 1).
-      ! However, in the algorithm below we pre-compute the state for the tendency one iteration early.
-      ! That is, on j=1 (rk_step=1, below) we pre-compute y_n + 1/2 k_1 and save it in provis_state.
-      ! Then we compute 1/6 k_1 and add it to state % time_levs(2).
-      ! That is why the coefficients of h are one index early in the following, i.e.
-      ! a = (1/2, 1/2, 1)
+      !------------------------------------------------------------------------------------------------!
+      ! The a_j coefficients of h in the computation of k_j are typically written (0, 1/2, 1/2, 1).    !
+      ! However, in the algorithm below we pre-compute the state for the tendency one iteration early. !
+      ! That is, on j=1 (rk_step=1, below) we pre-compute y_n + 1/2 k_1 and save it in provis_state.   !
+      ! Then we compute 1/6 k_1 and add it to state % time_levs(2).                                    !
+      ! That is why the coefficients of h are one index early in the following, i.e. a = (1/2, 1/2, 1) !
+      !------------------------------------------------------------------------------------------------!
 
       rk_substep_weights(1) = dt/2.
       rk_substep_weights(2) = dt/2.
@@ -355,205 +363,213 @@ module ocn_time_integration_rk4
 
       call mpas_timer_start("RK4-main loop")
 
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      ! BEGIN RK loop
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !---------------!
+      ! BEGIN RK loop !
+      !---------------!
       do rk_step = 1, 4
 
-        if (config_disable_thick_all_tend .and. config_disable_vel_all_tend .and. config_disable_tr_all_tend) then
-          exit ! don't compute in loop meant to update velocity, thickness, and tracers
-        end if
+         if (config_disable_thick_all_tend .and. config_disable_vel_all_tend .and. config_disable_tr_all_tend) then
+            exit ! Don't compute in loop meant to update velocity, thickness, and tracers
+         end if
 
-        call mpas_pool_get_subpool(domain % blocklist % structs, 'diagnostics', diagnosticsPool)
+         call mpas_pool_get_subpool(domain % blocklist % structs, 'diagnostics', diagnosticsPool)
 
-        ! Update halos for diagnostic variables.
-        if (config_use_cvmix_kpp) then
-           call mpas_timer_start("RK4-boundary layer depth halo update")
-           call mpas_dmpar_field_halo_exch(domain, 'boundaryLayerDepth')
-           call mpas_timer_stop("RK4-boundary layer depth halo update")
-        end if
-
-
-        call mpas_timer_start("RK4-diagnostic halo update")
+         ! Update halos for diagnostic variables.
+         if (config_use_cvmix_kpp) then
+            call mpas_timer_start("RK4-boundary layer depth halo update")
+            call mpas_dmpar_field_halo_exch(domain, 'boundaryLayerDepth')
+            call mpas_timer_stop("RK4-boundary layer depth halo update")
+         end if
 
 
-        call mpas_dmpar_field_halo_exch(domain, 'normalizedRelativeVorticityEdge')
-        if (config_mom_del4 > 0.0_RKIND) then
-           call mpas_dmpar_field_halo_exch(domain, 'divergence')
-           call mpas_dmpar_field_halo_exch(domain, 'relativeVorticity')
-        end if
-        call mpas_timer_stop("RK4-diagnostic halo update")
-        call mpas_threading_barrier()
+         call mpas_timer_start("RK4-diagnostic halo update")
 
 
-        ! Compute tendencies for high frequency thickness
-        ! In RK4 notation, we are computing the right hand side f(t,y),
-        ! which is the same as k_j / h.
+         call mpas_dmpar_field_halo_exch(domain, 'normalizedRelativeVorticityEdge')
+         if (config_mom_del4 > 0.0_RKIND) then
+            call mpas_dmpar_field_halo_exch(domain, 'divergence')
+            call mpas_dmpar_field_halo_exch(domain, 'relativeVorticity')
+         end if
+         call mpas_timer_stop("RK4-diagnostic halo update")
+         call mpas_threading_barrier()
 
-        if (config_use_freq_filtered_thickness) then
-           call mpas_timer_start("RK4-tendency computations")
+         !---------------------------------------------------------------!
+         ! Compute tendencies for high frequency thickness.              !
+         ! In RK4 notation, we are computing the right hand side f(t,y), !
+         ! which is the same as k_j / h.                                 !
+         !---------------------------------------------------------------!
 
-           block => domain % blocklist
-           do while (associated(block))
-              call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
-              call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-              call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-              call mpas_pool_get_subpool(block % structs, 'state', statePool)
-              call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-              call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
+         if (config_use_freq_filtered_thickness) then
+            call mpas_timer_start("RK4-tendency computations")
 
-              call ocn_tend_freq_filtered_thickness(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
-              call mpas_threading_barrier()
-              block => block % next
-           end do
+            block => domain % blocklist
+            do while (associated(block))
+               call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
+               call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
+               call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+               call mpas_pool_get_subpool(block % structs, 'state', statePool)
+               call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
+               call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
 
-           call mpas_timer_stop("RK4-tendency computations")
+               call ocn_tend_freq_filtered_thickness(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
+               call mpas_threading_barrier()
+               block => block % next
+            end do
 
-           call mpas_timer_start("RK4-prognostic halo update")
+            call mpas_timer_stop("RK4-tendency computations")
 
-           call mpas_dmpar_field_halo_exch(domain, 'tendHighFreqThickness')
-           call mpas_dmpar_field_halo_exch(domain, 'tendLowFreqDivergence')
+            call mpas_timer_start("RK4-prognostic halo update")
 
-           call mpas_timer_stop("RK4-prognostic halo update")
-           call mpas_threading_barrier()
+            call mpas_dmpar_field_halo_exch(domain, 'tendHighFreqThickness')
+            call mpas_dmpar_field_halo_exch(domain, 'tendLowFreqDivergence')
 
+            call mpas_timer_stop("RK4-prognostic halo update")
+            call mpas_threading_barrier()
 
-           ! Compute next substep state for high frequency thickness.
-           ! In RK4 notation, we are computing y_n + a_j k_j.
-           block => domain % blocklist
-           do while (associated(block))
-              call mpas_pool_get_subpool(block % structs, 'state', statePool)
-              call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-              call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
-              call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
+            !----------------------------------------------------------!
+            ! Compute next substep state for high frequency thickness. !
+            ! In RK4 notation, we are computing y_n + a_j k_j.         !
+            !----------------------------------------------------------!
+            block => domain % blocklist
+            do while (associated(block))
+               call mpas_pool_get_subpool(block % structs, 'state', statePool)
+               call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
+               call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
+               call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
 
-              call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessCur, 1)
-              call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
-              call mpas_pool_get_array(tendPool, 'highFreqThickness', highFreqThicknessTend)
+               call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessCur, 1)
+               call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
+               call mpas_pool_get_array(tendPool, 'highFreqThickness', highFreqThicknessTend)
 
-              call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
+               call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
 
-              !$omp do schedule(runtime)
-              do iCell = 1, nCells
-                 highFreqThicknessProvis(:, iCell) = highFreqThicknessCur(:, iCell) + rk_substep_weights(rk_step) &
-                    * highFreqThicknessTend(:, iCell)
-              end do
-              !$omp end do
-              call mpas_threading_barrier()
-              block => block % next
-           end do
+               !$omp do schedule(runtime)
+               do iCell = 1, nCells
+                  highFreqThicknessProvis(:, iCell) = highFreqThicknessCur(:, iCell) + rk_substep_weights(rk_step) &
+                     * highFreqThicknessTend(:, iCell)
+               end do
+               !$omp end do
+               call mpas_threading_barrier()
+               block => block % next
+            end do
 
-        endif
+         endif
 
+         !---------------------------------------------------------------!
+         ! Compute tendencies for velocity, thickness, and tracers.      !
+         ! In RK4 notation, we are computing the right hand side f(t,y), !
+         ! which is the same as k_j / h.                                 !
+         !---------------------------------------------------------------!
+         call mpas_timer_start("RK4 vel/thick tendency computations")
 
-        ! Compute tendencies for velocity, thickness, and tracers.
-        ! In RK4 notation, we are computing the right hand side f(t,y),
-        ! which is the same as k_j / h.
-        call mpas_timer_start("RK4 vel/thick tendency computations")
+         block => domain % blocklist
+         do while (associated(block))
+            call ocn_time_integrator_rk4_compute_vel_tends( block, dt, rk_substep_weights(rk_step), err )
 
-        block => domain % blocklist
-        do while (associated(block))
-           call ocn_time_integrator_rk4_compute_vel_tends( block, dt, rk_substep_weights(rk_step), err )
+            call ocn_time_integrator_rk4_compute_thick_tends( block, dt, rk_substep_weights(rk_step), err )
+            block => block % next
+         end do
 
-           call ocn_time_integrator_rk4_compute_thick_tends( block, dt, rk_substep_weights(rk_step), err )
-           block => block % next
-        end do
+         call mpas_timer_stop("RK4 vel/thick tendency computations")
 
-        call mpas_timer_stop("RK4 vel/thick tendency computations")
+         ! Update halos for prognostic variables.
 
-        ! Update halos for prognostic variables.
+         call mpas_timer_start("RK4 vel/thick prognostic halo update")
 
-        call mpas_timer_start("RK4 vel/thick prognostic halo update")
+         call mpas_dmpar_field_halo_exch(domain, 'tendNormalVelocity')
+         call mpas_dmpar_field_halo_exch(domain, 'tendLayerThickness')
 
-        call mpas_dmpar_field_halo_exch(domain, 'tendNormalVelocity')
-        call mpas_dmpar_field_halo_exch(domain, 'tendLayerThickness')
+         call mpas_timer_stop("RK4 vel/thick prognostic halo update")
 
-        call mpas_timer_stop("RK4 vel/thick prognostic halo update")
+         call mpas_timer_start("RK4 tracer tendency computations")
 
-        call mpas_timer_start("RK4 tracer tendency computations")
+         block => domain % blocklist
+         do while (associated(block))
+            call ocn_time_integrator_rk4_compute_tracer_tends( block, dt, rk_substep_weights(rk_step), err )
+            block => block % next
+         end do
 
-        block => domain % blocklist
-        do while (associated(block))
-           call ocn_time_integrator_rk4_compute_tracer_tends( block, dt, rk_substep_weights(rk_step), err )
-           block => block % next
-        end do
+         call mpas_timer_stop("RK4 tracer tendency computations")
 
-        call mpas_timer_stop("RK4 tracer tendency computations")
+         call mpas_timer_start("RK4 tracer prognostic halo update")
 
-        call mpas_timer_start("RK4 tracer prognostic halo update")
+         call mpas_pool_get_subpool(domain % blocklist % structs, 'tend', tendPool)
+         call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
 
-        call mpas_pool_get_subpool(domain % blocklist % structs, 'tend', tendPool)
-        call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
+         call mpas_pool_begin_iteration(tracersTendPool)
+         do while ( mpas_pool_get_next_member(tracersTendPool, groupItr) )
+            if ( groupItr % memberType == MPAS_POOL_FIELD ) then
+               call mpas_dmpar_field_halo_exch(domain, trim(groupItr % memberName))
+            end if
+         end do
 
-        call mpas_pool_begin_iteration(tracersTendPool)
-        do while ( mpas_pool_get_next_member(tracersTendPool, groupItr) )
-           if ( groupItr % memberType == MPAS_POOL_FIELD ) then
-              call mpas_dmpar_field_halo_exch(domain, trim(groupItr % memberName))
-           end if
-        end do
+         call mpas_timer_stop("RK4 tracer prognostic halo update")
+         call mpas_threading_barrier()
+         !------------------------------------------------------------------!
+         ! Compute next substep state for velocity, thickness, and tracers. !
+         ! In RK4 notation, we are computing y_n + a_j k_j.                 !
+         !------------------------------------------------------------------!
 
-        call mpas_timer_stop("RK4 tracer prognostic halo update")
-        call mpas_threading_barrier()
+         call mpas_timer_start("RK4-update diagnostic variables")
 
-        ! Compute next substep state for velocity, thickness, and tracers.
-        ! In RK4 notation, we are computing y_n + a_j k_j.
+         if (rk_step < 4) then
+            block => domain % blocklist
+            do while (associated(block))
+               call ocn_time_integrator_rk4_diagnostic_update(block, dt, rk_substep_weights(rk_step), err)
+               block => block % next
+            end do
+         end if
 
-        call mpas_timer_start("RK4-update diagnostic variables")
+         call mpas_timer_stop("RK4-update diagnostic variables")
+         call mpas_threading_barrier()
 
-        if (rk_step < 4) then
-           block => domain % blocklist
-           do while (associated(block))
-              call ocn_time_integrator_rk4_diagnostic_update(block, dt, rk_substep_weights(rk_step), err)
-              block => block % next
-           end do
-        end if
+         !------------------------------------------------------------------------------------------------!
+         ! Accumulate update.                                                                             !
+         ! In RK4 notation, we are computing b_j k_j and adding it to an accumulating sum so that we have !
+         !    y_{n+1} = y_n + sum ( b_j k_j )                                                             !
+         ! after the fourth iteration.                                                                    !
+         !------------------------------------------------------------------------------------------------!
 
-        call mpas_timer_stop("RK4-update diagnostic variables")
-        call mpas_threading_barrier()
+         call mpas_timer_start("RK4-RK4 accumulate update")
 
-        ! Accumulate update.
-        ! In RK4 notation, we are computing b_j k_j and adding it to an accumulating sum so that we have
-        !    y_{n+1} = y_n + sum ( b_j k_j )
-        ! after the fourth iteration.
+         block => domain % blocklist
+         do while (associated(block))
+            call ocn_time_integrator_rk4_accumulate_update(block, rk_weights(rk_step), err)
 
-        call mpas_timer_start("RK4-RK4 accumulate update")
+            block => block % next
+         end do
 
-        block => domain % blocklist
-        do while (associated(block))
-           call ocn_time_integrator_rk4_accumulate_update(block, rk_weights(rk_step), err)
-
-           block => block % next
-        end do
-
-        call mpas_timer_stop("RK4-RK4 accumulate update")
-        call mpas_threading_barrier()
+         call mpas_timer_stop("RK4-RK4 accumulate update")
+         call mpas_threading_barrier()
 
       end do
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      ! END RK loop
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !-------------!
+      ! END RK loop !
+      !-------------!
 
       call mpas_timer_stop("RK4-main loop")
       call mpas_threading_barrier()
 
-      !
-      !  A little clean up at the end: rescale tracer fields and compute diagnostics for new state
-      !
+      !-------------------------------------------------------------------------------------------!
+      ! A little clean up at the end: rescale tracer fields and compute diagnostics for new state !
+      !-------------------------------------------------------------------------------------------!
       call mpas_timer_start("RK4-cleaup phase")
 
       ! Rescale tracers
       block => domain % blocklist
       do while(associated(block))
-        call ocn_time_integrator_rk4_cleanup(block, dt, err)
+         call ocn_time_integrator_rk4_cleanup(block, dt, err)
 
-        block => block % next
+         block => block % next
       end do
 
       call mpas_timer_start("RK4-implicit vert mix")
-      ! Update halo on u and tracers, which were just updated for implicit vertical mixing.  If not done,
-      ! this leads to lack of volume conservation.  It is required because halo updates in RK4 are only
-      ! conducted on tendencies, not on the velocity and tracer fields.  So this update is required to
-      ! communicate the change due to implicit vertical mixing across the boundary.
+      !--------------------------------------------------------------------------------------------------!
+      ! Update halo on u and tracers, which were just updated for implicit vertical mixing. If not done, !
+      ! this leads to lack of volume conservation. It is required because halo updates in RK4 are only   !
+      ! conducted on tendencies, not on the velocity and tracer fields.  So this update is required to   !
+      ! communicate the change due to implicit vertical mixing across the boundary.                      !
+      !--------------------------------------------------------------------------------------------------!
       call mpas_timer_start("RK4-implicit vert mix halos")
 
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', statePool)
@@ -611,7 +627,6 @@ module ocn_time_integration_rk4
          call mpas_pool_get_array(diagnosticsPool, 'surfaceVelocity', surfaceVelocity)
          call mpas_pool_get_array(diagnosticsPool, 'SSHGradient', SSHGradient)
 
-
          if (config_prescribe_velocity) then
             !$omp do schedule(runtime)
             do iEdge = 1, nEdges
@@ -634,9 +649,9 @@ module ocn_time_integration_rk4
          ! Update the effective desnity in land ice if we're coupling to land ice
          call ocn_effective_density_in_land_ice_update(meshPool, forcingPool, statePool, scratchPool, err)
 
-         ! ------------------------------------------------------------------
-         ! Accumulating various parameterizations of the transport velocity
-         ! ------------------------------------------------------------------
+         !------------------------------------------------------------------!
+         ! Accumulating various parameterizations of the transport velocity !
+         !------------------------------------------------------------------!
          !$omp do schedule(runtime)
          do iEdge = 1, nEdges
             normalTransportVelocity(:, iEdge) = normalVelocityNew(:, iEdge)
@@ -646,7 +661,7 @@ module ocn_time_integration_rk4
 
          ! Compute normalGMBolusVelocity and the tracer transport velocity
          if (config_use_standardGM) then
-             call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
+            call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
          end if
          call mpas_threading_barrier()
 
@@ -657,19 +672,19 @@ module ocn_time_integration_rk4
             end do
             !$omp end do
          end if
-         ! ------------------------------------------------------------------
-         ! End: Accumulating various parameterizations of the transport velocity
-         ! ------------------------------------------------------------------
+         !-----------------------------------------------------------------------!
+         ! End: Accumulating various parameterizations of the transport velocity !
+         !-----------------------------------------------------------------------!
 
          call mpas_reconstruct(meshPool,  normalVelocityNew, &
-                          velocityX, velocityY, velocityZ,   &
-                          velocityZonal, velocityMeridional, &
-                          includeHalos = .true.)
+            velocityX, velocityY, velocityZ,   &
+            velocityZonal, velocityMeridional, &
+            includeHalos = .true.)
 
          call mpas_reconstruct(meshPool, gradSSH,          &
-                          gradSSHX, gradSSHY, gradSSHZ,    &
-                          gradSSHZonal, gradSSHMeridional, &
-                          includeHalos = .true.)
+            gradSSHX, gradSSHY, gradSSHZ,    &
+            gradSSHZonal, gradSSHMeridional, &
+            includeHalos = .true.)
          call mpas_threading_barrier()
 
          !$omp do schedule(runtime)
@@ -762,7 +777,7 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
       call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
 
-      ! advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
+      ! Advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
       if (associated(highFreqThicknessProvis)) then
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityProvis, &
@@ -826,7 +841,7 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
       call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
 
-      ! advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
+      ! Advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
       if (associated(highFreqThicknessProvis)) then
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
@@ -892,7 +907,7 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
       call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
 
-      ! advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
+      ! Advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
       if (associated(highFreqThicknessProvis)) then
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
@@ -907,12 +922,12 @@ module ocn_time_integration_rk4
       call mpas_threading_barrier()
 
       if (config_filter_btr_mode) then
-          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
+         call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
       endif
       call mpas_threading_barrier()
 
       call ocn_tend_tracer(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, &
-                           scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
+         scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
       call mpas_threading_barrier()
 
    end subroutine ocn_time_integrator_rk4_compute_tracer_tends!}}}
@@ -963,7 +978,7 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
       call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
 
-      ! advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
+      ! Advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
       if (associated(highFreqThicknessProvis)) then
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityProvis, &
@@ -996,12 +1011,12 @@ module ocn_time_integration_rk4
       call ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)
 
       if (config_filter_btr_mode) then
-          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
+         call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
       endif
       call mpas_threading_barrier()
 
       call ocn_tend_tracer(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, &
-                           scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
+         scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
       call mpas_threading_barrier()
 
    end subroutine ocn_time_integrator_rk4_compute_tends!}}}
@@ -1081,17 +1096,16 @@ module ocn_time_integration_rk4
       do iEdge = 1, nEdges
          do k = 1, maxLevelEdgeTop(iEdge)
             normalVelocityProvis(k, iEdge) = normalVelocityCur(k, iEdge) + rkWeight &
-                                           * normalVelocityTend(k, iEdge)
+               * normalVelocityTend(k, iEdge)
          end do
       end do
       !$omp end do
-
 
       !$omp do schedule(runtime) private(k)
       do iCell = 1, nCells
          do k = 1, maxLevelCell(iCell)
             layerThicknessProvis(k, iCell) = layerThicknessCur(k, iCell) + rkWeight &
-                                           * layerThicknessTend(k, iCell)
+               * layerThicknessTend(k, iCell)
          end do
       end do
       !$omp end do
@@ -1113,8 +1127,8 @@ module ocn_time_integration_rk4
                   do iCell = 1, nCells
                      do k = 1, maxLevelCell(iCell)
                         tracersGroupProvis(:, k, iCell) = ( layerThicknessCur(k, iCell) * tracersGroupCur(:, k, iCell)  &
-                                                 + rkWeight * tracersGroupTend(:, k, iCell) &
-                                                   ) / layerThicknessProvis(k, iCell)
+                           + rkWeight * tracersGroupTend(:, k, iCell) &
+                           ) / layerThicknessProvis(k, iCell)
                      end do
 
                   end do
@@ -1128,7 +1142,7 @@ module ocn_time_integration_rk4
          !$omp do schedule(runtime)
          do iCell = 1, nCells
             lowFreqDivergenceProvis(:, iCell) = lowFreqDivergenceCur(:, iCell) + rkWeight &
-                                              * lowFreqDivergenceTend(:, iCell)
+               * lowFreqDivergenceTend(:, iCell)
          end do
          !$omp end do
       end if
@@ -1153,9 +1167,9 @@ module ocn_time_integration_rk4
       call ocn_diagnostic_solve(dt, provisStatePool, forcingPool, meshPool, diagnosticsPool, scratchPool, tracersPool, 1)
       call mpas_threading_barrier()
 
-      ! ------------------------------------------------------------------
-      ! Accumulating various parametrizations of the transport velocity
-      ! ------------------------------------------------------------------
+      !-----------------------------------------------------------------!
+      ! Accumulating various parametrizations of the transport velocity !
+      !-----------------------------------------------------------------!
       !$omp do schedule(runtime)
       do iEdge = 1, nEdges
          normalTransportVelocity(:, iEdge) = normalVelocityProvis(:, iEdge)
@@ -1177,9 +1191,9 @@ module ocn_time_integration_rk4
          !$omp end do
       end if
       call mpas_threading_barrier()
-      ! ------------------------------------------------------------------
-      ! End: Accumulating various parametrizations of the transport velocity
-      ! ------------------------------------------------------------------
+      !----------------------------------------------------------------------!
+      ! End: Accumulating various parametrizations of the transport velocity !
+      !----------------------------------------------------------------------!
 
    end subroutine ocn_time_integrator_rk4_diagnostic_update!}}}
 
@@ -1219,11 +1233,13 @@ module ocn_time_integration_rk4
 
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
       call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
-
-      !call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
-      !call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
-      !call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessCur, 1)
-      !call mpas_pool_get_array(statePool, 'lowFreqDivergence', lowFreqDivergenceCur, 1)
+      
+      !-----------------------------------------------------------------------------------!
+      ! call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)       !
+      ! call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)       !
+      ! call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessCur, 1) !
+      ! call mpas_pool_get_array(statePool, 'lowFreqDivergence', lowFreqDivergenceCur, 1) !
+      !-----------------------------------------------------------------------------------!
 
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
@@ -1268,7 +1284,7 @@ module ocn_time_integration_rk4
                   do iCell = 1, nCells
                      do k = 1, maxLevelCell(iCell)
                         tracersGroupNew(:, k, iCell) = tracersGroupNew(:, k, iCell) + rkWeight &
-                                                * tracersGroupTend(:, k, iCell)
+                           * tracersGroupTend(:, k, iCell)
                      end do
                   end do
                   !$omp end do
@@ -1353,9 +1369,9 @@ module ocn_time_integration_rk4
             if ( associated(tracersGroupNew) ) then
                !$omp do schedule(runtime) private(k)
                do iCell = 1, nCells
-                 do k = 1, maxLevelCell(iCell)
-                   tracersGroupNew(:, k, iCell) = tracersGroupNew(:, k, iCell) / layerThicknessNew(k, iCell)
-                 end do
+                  do k = 1, maxLevelCell(iCell)
+                     tracersGroupNew(:, k, iCell) = tracersGroupNew(:, k, iCell) / layerThicknessNew(k, iCell)
+                  end do
                end do
                !$omp end do
             end if
