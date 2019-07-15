@@ -69,7 +69,10 @@ module ocn_time_integration_split_filtered
    character (len=*), parameter :: subcycleGroupName = 'subcycleFields'
    character (len=*), parameter :: finalBtrGroupName = 'finalBtrFields'
    integer :: nBtrSubcycles, debugSplitExplicitUnit
-
+   
+   ! Primary and Secondary Weights of the Time-Averaging Filter
+   real (kind=RKIND), allocatable, dimension(:) :: tau, PrimaryWeights, SecondaryWeights   
+   
 contains
 
 !-----------------------------------------------------------!
@@ -112,10 +115,8 @@ contains
       type (mpas_pool_type), pointer :: scratchPool
       type (mpas_pool_type), pointer :: swForcingPool
 
-      type (dm_info) :: dminfo
-      integer :: mpiRank, iCell, i,k,j, iEdge, cell1, cell2, split_explicit_step, split, &
-         eoe, oldBtrSubcycleTime, newBtrSubcycleTime, uPerpTime, BtrCorIter, &
-         stage1_tend_time
+      integer :: iCell, i,k,j, iEdge, cell1, cell2, split_explicit_step, split, eoe, &
+         oldBtrSubcycleTime, newBtrSubcycleTime, uPerpTime, BtrCorIter, stage1_tend_time
       integer, dimension(:), allocatable :: n_bcl_iter
       type (block_type), pointer :: block
       real (kind=RKIND) :: normalThicknessFluxSum, thicknessSum, flux, sshEdge, hEdge1, &
@@ -154,11 +155,6 @@ contains
 
       real (kind=RKIND), pointer :: config_mom_del4, config_btr_gam1_velWt1, config_btr_gam2_SSHWt1
       real (kind=RKIND), pointer :: config_btr_gam3_velWt2
-
-      ! Config options: Barotropic subcycling
-      character (len=StrKIND), pointer :: config_btr_filter_type
-      real (kind=RKIND), pointer :: config_btr_rectangular_filter_range, config_btr_Shchepetkin_filter_param_p, &
-         config_btr_Shchepetkin_filter_param_q
 
       ! Dimensions
       integer :: nCells, nEdges
@@ -236,21 +232,6 @@ contains
 
       integer :: temp_mask
 
-      ! Primary and Secondary Weights of the Time-Averaging Filter
-      real (kind=RKIND), allocatable, dimension(:) :: tau, PrimaryWeights, SecondaryWeights
-      
-      dminfo = domain % dminfo
-      mpiRank = dminfo % my_proc_id
-      
-      ! To Do: Move the following section of code within the omp master directives to the subroutine ocn_time_integration_split_filtered_init
-      
-      !$omp master
-      IF (mpiRank == 0) THEN
-         WRITE (*,'(A,I2)') 'Hello from MPI Rank ID: ', mpiRank
-         CALL TestFilterRoutines()
-      END IF 
-      !$omp end master
-
       call mpas_timer_start("se timestep")
 
       call mpas_pool_get_config(domain % configs, 'config_n_bcl_iter_beg', config_n_bcl_iter_beg)
@@ -264,10 +245,6 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_n_btr_cor_iter', config_n_btr_cor_iter)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam2_SSHWt1', config_btr_gam2_SSHWt1)
       call mpas_pool_get_config(domain % configs, 'config_filter_btr_mode', config_filter_btr_mode)
-      call mpas_pool_get_config(domain % configs, 'config_btr_filter_type', config_btr_filter_type)
-      call mpas_pool_get_config(domain % configs, 'config_btr_rectangular_filter_range', config_btr_rectangular_filter_range)
-      call mpas_pool_get_config(domain % configs, 'config_btr_Shchepetkin_filter_param_p', config_btr_Shchepetkin_filter_param_p)
-      call mpas_pool_get_config(domain % configs, 'config_btr_Shchepetkin_filter_param_q', config_btr_Shchepetkin_filter_param_q)
 
       call mpas_pool_get_config(domain % configs, 'config_mom_del4', config_mom_del4)
       call mpas_pool_get_config(domain % configs, 'config_use_freq_filtered_thickness', config_use_freq_filtered_thickness)
@@ -291,15 +268,6 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
       call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
       allocate(n_bcl_iter(config_n_ts_iter))
-
-      ! Determine the primary and secondary weights of the time-averaging filters
-
-      allocate (tau(1:2*nBtrSubcycles))
-      allocate (PrimaryWeights(1:2*nBtrSubcycles))
-      allocate (SecondaryWeights(1:2*nBtrSubcycles))
-
-      call DetermineFilterWeights(config_btr_filter_type,config_btr_rectangular_filter_range,config_btr_Shchepetkin_filter_param_p, &
-         config_btr_Shchepetkin_filter_param_q,nBtrSubcycles,tau,PrimaryWeights,SecondaryWeights)
 
       !----------------------------------------!
       !                                        !
@@ -1894,7 +1862,6 @@ contains
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', statePool)
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
-
       call mpas_timer_start('se vmix halos normalVelFld')
       call mpas_dmpar_field_halo_exch(domain, 'normalVelocity', timeLevel=2)
       call mpas_timer_stop('se vmix halos normalVelFld')
@@ -2029,10 +1996,6 @@ contains
 
       deallocate(n_bcl_iter)
 
-      deallocate (tau)
-      deallocate (PrimaryWeights)
-      deallocate (SecondaryWeights)
-
    end subroutine ocn_time_integrator_split_filtered!}}}
 
 !---------------------------------------------------------------------------!
@@ -2071,11 +2034,19 @@ contains
 
       type (mpas_time_type) :: nowTime
       type (mpas_timeInterval_type) :: fullTimeStep, barotropicTimeStep, remainder, zeroInterval
+      type (dm_info) :: dminfo
 
       integer :: iErr
       integer (kind=I8KIND) :: nBtrSubcyclesI8
       logical, pointer :: config_debug_split_explicit
       character(len=StrKIND), pointer :: config_debug_split_explicit_filename
+      
+      integer :: mpiRank
+      
+      ! Config options: Barotropic subcycling
+      character (len=StrKIND), pointer :: config_btr_filter_type
+      real (kind=RKIND), pointer :: config_btr_rectangular_filter_range, config_btr_Shchepetkin_filter_param_p, &
+         config_btr_Shchepetkin_filter_param_q
 
       call mpas_pool_get_config(domain % configs, 'config_do_restart', config_do_restart)
 
@@ -2087,7 +2058,11 @@ contains
       call mpas_pool_get_config(domain % configs, &
          'config_debug_split_explicit_filename', &
          config_debug_split_explicit_filename)
-
+      call mpas_pool_get_config(domain % configs, 'config_btr_filter_type', config_btr_filter_type)
+      call mpas_pool_get_config(domain % configs, 'config_btr_rectangular_filter_range', config_btr_rectangular_filter_range)
+      call mpas_pool_get_config(domain % configs, 'config_btr_Shchepetkin_filter_param_p', config_btr_Shchepetkin_filter_param_p)
+      call mpas_pool_get_config(domain % configs, 'config_btr_Shchepetkin_filter_param_q', config_btr_Shchepetkin_filter_param_q)   
+         
       nowTime = mpas_get_clock_time(domain % clock, MPAS_NOW, ierr)
       call mpas_set_timeInterval( zeroInterval, S=0 )
 
@@ -2208,7 +2183,26 @@ contains
 
             block => block % next
          end do
-      end if
+      end IF
+      
+      dminfo = domain % dminfo
+      mpiRank = dminfo % my_proc_id
+      
+      !$omp master
+      IF (mpiRank == 0) THEN
+         WRITE (*,'(A,I2)') 'Hello from MPI Rank ID: ', mpiRank
+         CALL TestFilterRoutines()
+      END IF 
+      !$omp end master
+      
+      ! Determine the primary and secondary weights of the time-averaging filters
+
+      allocate (tau(1:2*nBtrSubcycles))
+      allocate (PrimaryWeights(1:2*nBtrSubcycles))
+      allocate (SecondaryWeights(1:2*nBtrSubcycles))
+
+      call DetermineFilterWeights(config_btr_filter_type,config_btr_rectangular_filter_range,config_btr_Shchepetkin_filter_param_p, &
+         config_btr_Shchepetkin_filter_param_q,nBtrSubcycles,tau,PrimaryWeights,SecondaryWeights)
 
       if (config_debug_split_explicit) then
          ! Open up temporary file

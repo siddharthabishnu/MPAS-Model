@@ -16,7 +16,7 @@
 !> \date   September 2011                                        !
 !> \details                                                      !
 !>  This module contains initialization and timestep drivers for !
-!>  the MPAS ocean core.                                         !                                                                                               !
+!>  the MPAS ocean   core.                                       !                                                                                               !
 !                                                                !
 !----------------------------------------------------------------!
 

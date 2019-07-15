@@ -111,7 +111,6 @@ contains
       character (len=StrKIND), pointer :: simulationStartTime
       type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
 
-
       if (trim(config_time_integrator) == 'RK4') then
          call ocn_time_integrator_rk4(domain, dt)
       elseif (trim(config_time_integrator) == 'forward_euler') then
@@ -161,7 +160,6 @@ contains
       err = 0
 
       call mpas_pool_get_config(ocnConfigs, 'config_time_integrator', config_time_integrator)
-
 
    end subroutine ocn_timestep_init!}}}
 
