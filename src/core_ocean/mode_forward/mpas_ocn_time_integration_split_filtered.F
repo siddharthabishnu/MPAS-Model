@@ -154,7 +154,7 @@ contains
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
       real (kind=RKIND), pointer :: config_mom_del4, config_btr_gam1_velWt1, config_btr_gam2_SSHWt1
-      real (kind=RKIND), pointer :: config_btr_gam3_velWt2
+      real (kind=RKIND), pointer :: config_btr_gam3_velWt2, config_btr_gam4_velWt2
 
       ! Dimensions
       integer :: nCells, nEdges
@@ -241,6 +241,7 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_btr_subcycle_loop_factor', config_btr_subcycle_loop_factor)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam1_velWt1', config_btr_gam1_velWt1)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam3_velWt2', config_btr_gam3_velWt2)
+      call mpas_pool_get_config(domain % configs, 'config_btr_gam4_velWt2', config_btr_gam4_velWt2)
       call mpas_pool_get_config(domain % configs, 'config_btr_solve_SSH2', config_btr_solve_SSH2)
       call mpas_pool_get_config(domain % configs, 'config_n_btr_cor_iter', config_n_btr_cor_iter)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam2_SSHWt1', config_btr_gam2_SSHWt1)
@@ -1154,12 +1155,12 @@ contains
                      nCells = nCellsArray( cellHaloComputeCounter )
                      nEdges = nEdgesArray( edgeHaloComputeCounter )
 
-                     !-------------------------------------------------------------------------------------------------------!
-                     ! config_btr_gam3_velWt2 sets the forward weighting of velocity in the SSH computation                  !
-                     ! config_btr_gam3_velWt2 = 1     flux = normalBarotropicVelocityNew*H                                   !
-                     ! config_btr_gam3_velWt2 = 0.5   flux = 1/2*(normalBarotropicVelocityNew+normalBarotropicVelocityOld)*H !
-                     ! config_btr_gam3_velWt2 = 0     flux = normalBarotropicVelocityOld*H                                   !
-                     !-------------------------------------------------------------------------------------------------------!
+                     !------------------------------------------------------------------------------------------------------------------------------------!
+                     ! config_btr_gam3_velWt2 and config_btr_gam4_velWt2 set the forward weighting of velocity in the SSH computation                     !
+                     ! config_btr_gam3_velWt2 = 1 and config_btr_gam4_velWt2 = 0   flux = normalBarotropicVelocityNew*H                                   !
+                     ! config_btr_gam3_velWt2 = 0.5 and config_btr_gam4_velWt2 = 0 flux = 1/2*(normalBarotropicVelocityNew+normalBarotropicVelocityOld)*H !
+                     ! config_btr_gam3_velWt2 = 0 and config_btr_gam4_velWt2 = 0   flux = normalBarotropicVelocityOld*H                                   !
+                     !------------------------------------------------------------------------------------------------------------------------------------!
 
                      !$omp do schedule(runtime) private(i, iEdge, cell1, cell2, sshCell1, sshCell2, sshEdge, thicknessSum, flux)
                      do iCell = 1, nCells
@@ -1191,10 +1192,10 @@ contains
                            ! Take average  of full thickness at two neighboring cells.                  !
                            ! thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth (cell2) ) !
                            !----------------------------------------------------------------------------!
-                           flux = ((1.0-config_btr_gam3_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                              + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
+                           flux = ((1.0-config_btr_gam3_velWt2-config_btr_gam4_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
+                              + config_btr_gam4_velWt2 * btrvel_temp(iEdge) + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
                               * thicknessSum
-
+                                             
                            sshTend(iCell) = sshTend(iCell) + edgeSignOnCell(i, iCell) * flux &
                               * dvEdge(iEdge)
 
@@ -1229,8 +1230,8 @@ contains
                         ! Take average  of full thickness at two neighboring cells                  !
                         ! thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) ) !
                         !---------------------------------------------------------------------------!
-                        flux = ((1.0-config_btr_gam3_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                           + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
+                        flux = ((1.0-config_btr_gam3_velWt2-config_btr_gam4_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
+                           + config_btr_gam4_velWt2 * btrvel_temp(iEdge) + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
                            * thicknessSum
                            
                         ! barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
